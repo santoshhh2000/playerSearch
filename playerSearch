@@ -1,0 +1,307 @@
+//app.js
+const express = require('express');
+const mysql = require('mysql2');
+const app = express();
+const path = require('path');
+
+
+const pool = mysql.createPool({
+    host: 'localhost',
+    user: 'root',
+    password: 'Root@123',
+    database: 'player_information' 
+});
+
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+
+app.use(express.urlencoded({ extended: true }));
+
+
+
+app.get('/players', (req, res) => {
+    pool.query('SELECT * FROM players', (error, results) => {
+        if (error) {
+            console.error('Error fetching players:', error);
+            res.send('Error fetching players.');
+        } else {
+            res.render('players', { players: results });
+        }
+    });
+});
+
+
+
+app.get('/', (req, res) => {
+    res.render('add-player', { players: [] });
+});
+
+
+
+app.post('/players', (req, res) => {
+    const { name, dateOfBirth, photoUrl, birthPlace, career, numberOfMatches, score, fifties, centuries, wickets, average } = req.body;
+    pool.query('INSERT INTO players (name, date_of_birth, photo_url, birth_place, career, number_of_matches, score, fifties, centuries, wickets, average) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, dateOfBirth, photoUrl, birthPlace, career, numberOfMatches, score, fifties, centuries, wickets, average],
+        (error, results) => {
+            if (error) {
+                console.error('Error adding player:', error);
+                res.send('Error adding player.');
+            } else {
+                console.log('Player added successfully.');
+                res.redirect('/');
+            }
+        });
+});
+
+
+
+app.get('/players/:id/edit', (req, res) => {
+    const playerId = req.params.id;
+    pool.query('SELECT * FROM players WHERE id = ?', [playerId], (error, results) => {
+        if (error) {
+            console.error('Error fetching player:', error);
+            res.send('Error fetching player.');
+        } else {
+            if (results.length === 0) {
+                res.send('Player not found.');
+            } else {
+                res.render('edit-player', { player: results[0] });
+            }
+        }
+    });
+});
+
+
+app.post('/players/:id', (req, res) => {
+    const playerId = req.params.id;
+    const { name, dateOfBirth, photoUrl, birthPlace, career, numberOfMatches, score, fifties, centuries, wickets, average } = req.body;
+    pool.query('UPDATE players SET name = ?, date_of_birth = ?, photo_url = ?, birth_place = ?, career = ?, number_of_matches = ?, score = ?, fifties = ?, centuries = ?, wickets = ?, average = ? WHERE id = ?',
+        [name, dateOfBirth, photoUrl, birthPlace, career, numberOfMatches, score, fifties, centuries, wickets, average, playerId],
+        (error, results) => {
+            if (error) {
+                console.error('Error updating player:', error);
+                res.send('Error updating player.');
+            } else {
+                console.log('Player updated successfully.');
+                res.redirect('/');
+            }
+        });
+});
+
+
+
+
+app.post('/players/:id/delete', (req, res) => {
+    const playerId = req.params.id;
+    pool.query('DELETE FROM players WHERE id = ?', [playerId], (error, results) => {
+        if (error) {
+            console.error('Error deleting player:', error);
+            res.send('Error deleting player.');
+        } else {
+            console.log('Player deleted successfully.');
+            res.redirect('/players');
+        }
+    });
+});
+
+
+
+app.get('/search', (req, res) => {
+    const searchName = req.query.name;  
+    pool.query('SELECT * FROM players WHERE name LIKE ?', [`%${searchName}%`], (error, results) => {
+        if (error) {
+            console.error('Error searching players:', error);
+        } else {
+            res.render('search-results', { players: results });
+        }
+    });
+});
+
+
+
+app.listen(3, () => {
+    console.log('Server is running on port 3');
+});
+
+
+
+//addPlayer.ejs
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Player</title>
+    <style>
+        
+    </style>
+</head>
+<body>
+    <h1>Add Player</h1>
+    <form action="/players" method="POST">
+        <label for="name">Name:</label><br>
+        <input type="text" id="name" name="name" required><br>
+        <label for="dateOfBirth">Date of Birth:</label><br>
+        <input type="date" id="dateOfBirth" name="dateOfBirth" required><br>
+        <label for="photoUrl">Photo URL:</label><br>
+        <input type="text" id="photoUrl" name="photoUrl" required><br>
+        <label for="birthPlace">Birth Place:</label><br>
+        <input type="text" id="birthPlace" name="birthPlace" required><br>
+        <label for="career">Career:</label><br>
+        <input type="text" id="career" name="career" required><br>
+        <label for="numberOfMatches">Number of Matches:</label><br>
+        <input type="number" id="numberOfMatches" name="numberOfMatches" required><br>
+        <label for="score">Score:</label><br>
+        <input type="number" id="score" name="score" required><br>
+        <label for="fifties">Fifties:</label><br>
+        <input type="number" id="fifties" name="fifties" required><br>
+        <label for="centuries">Centuries:</label><br>
+        <input type="number" id="centuries" name="centuries" required><br>
+        <label for="wickets">Wickets:</label><br>
+        <input type="number" id="wickets" name="wickets" required><br>
+        <label for="average">Average:</label><br>
+        <input type="number" id="average" name="average" required><br>
+        <button type="submit">Add Player</button>
+    </form>
+
+    
+    <a href="/players">View All Players</a>
+    
+
+    <h2>Search Player</h2>
+    <form action="/search" method="GET">
+        <label for="search">Search Player:</label><br>
+        <input type="text" id="search" name="name" placeholder="Enter player name">
+        <button type="submit">Search</button>
+    </form>
+</body>
+</html>
+
+
+
+//player.ejs
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Players</title>
+    <style>
+    </style>
+</head>
+<body>
+    <h1>Players</h1>
+    <a href="/">Add New Player</a>
+    <ul>
+        <% players.forEach(player => { %>
+            <li>
+                <strong>Photo URL:</strong><img src="<%= player.photo_url %>" alt="Player Photo" width="152" height="152"><br>
+                <strong>Name:</strong> <%= player.name %><br>
+                <strong>Date of Birth:</strong> <%= player.date_of_birth %><br>
+                <strong>Birth Place:</strong> <%= player.birth_place %><br>
+                <strong>Career:</strong> <%= player.career %><br>
+                <strong>Number of Matches:</strong> <%= player.number_of_matches %><br>
+                <strong>Score:</strong> <%= player.score %><br>
+                <strong>Fifties:</strong> <%= player.fifties %><br>
+                <strong>Centuries:</strong> <%= player.centuries %><br>
+                <strong>Wickets:</strong> <%= player.wickets %><br>
+                <strong>Average:</strong> <%= player.average %><br>
+              
+                <form action="/players/<%= player.id %>/edit" method="GET">
+                    <button type="submit">Edit</button>
+                </form>
+          
+                <form action="/players/<%= player.id %>/delete" method="POST">
+                    <button type="submit">Delete</button>
+                </form>
+            </li>
+        <% }); %>
+    </ul>
+</body>
+</html>
+
+
+//edit-player.ejs
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Player</title>
+</head>
+<body>
+    <h1>Edit Player</h1>
+    <form action="/players/<%= player.id %>" method="POST">
+        <label for="name">Name:</label><br>
+        <input type="text" id="name" name="name" value="<%= player.name %>" required><br>
+        <label for="dateOfBirth">Date of Birth:</label><br>
+        <input type="date" id="dateOfBirth" name="dateOfBirth" value="<%= player.date_of_birth.toISOString().substring(0, 10) %>" required><br>
+        <label for="photoUrl">Photo:</label><br>
+        
+        <img src="<%= player.photo_url %>" alt="Player Photo" width="152" height="152"><br>
+      
+        <input type="text" id="photoUrl" name="photoUrl" value="<%= player.photo_url %>"><br>
+        <label for="birthPlace">Birth Place:</label><br>
+        <input type="text" id="birthPlace" name="birthPlace" value="<%= player.birth_place %>" required><br>
+        <label for="career">Career:</label><br>
+        <input type="text" id="career" name="career" value="<%= player.career %>" required><br>
+        <label for="numberOfMatches">Number of Matches:</label><br>
+        <input type="number" id="numberOfMatches" name="numberOfMatches" value="<%= player.number_of_matches %>" required><br>
+        <label for="score">Score:</label><br>
+        <input type="number" id="score" name="score" value="<%= player.score %>" required><br>
+        <label for="fifties">Fifties:</label><br>
+        <input type="number" id="fifties" name="fifties" value="<%= player.fifties %>" required><br>
+        <label for="centuries">Centuries:</label><br>
+        <input type="number" id="centuries" name="centuries" value="<%= player.centuries %>" required><br>
+        <label for="wickets">Wickets:</label><br>
+        <input type="number" id="wickets" name="wickets" value="<%= player.wickets %>" required><br>
+        <label for="average">Average:</label><br>
+        <input type="number" id="average" name="average" value="<%= player.average %>" required><br>
+       
+        <button type="submit">Update Player</button>
+    </form>
+</body>
+</html>
+
+//search-results.ejs
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+    <style>
+       
+    </style>
+</head>
+<body>
+    <h1>Search Results</h1>
+    <ul>
+        <% players.forEach(player => { %>
+            <li>
+                <strong>Photo URL:</strong><img src="<%= player.photo_url %>" alt="Player Photo" width="152" height="152"><br>
+                <strong>Name:</strong> <%= player.name %><br>
+                <strong>Date of Birth:</strong> <%= player.date_of_birth %><br>
+                <strong>Birth Place:</strong> <%= player.birth_place %><br>
+                <strong>Career:</strong> <%= player.career %><br>
+                <strong>Number of Matches:</strong> <%= player.number_of_matches %><br>
+                <strong>Score:</strong> <%= player.score %><br>
+                <strong>Fifties:</strong> <%= player.fifties %><br>
+                <strong>Centuries:</strong> <%= player.centuries %><br>
+                <strong>Wickets:</strong> <%= player.wickets %><br>
+                <strong>Average:</strong> <%= player.average %><br>
+                <form action="/players/<%= player.id %>/edit" method="GET">
+                    <button type="submit">Edit</button>
+                </form>
+            </li>
+        <% }); %>
+    </ul>
+</body>
+</html>
+
+
+
+
+
